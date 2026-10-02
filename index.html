@@ -1,0 +1,958 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <title>兒童數學像素塗鴉練習題產生器</title>
+  <style>
+    :root {
+      --primary: #4f46e5;
+      --primary-hover: #4338ca;
+      --bg: #f8fafc;
+      --panel-bg: #ffffff;
+      --border: #e2e8f0;
+      --text: #1e293b;
+      --print-cell-size: 5mm;
+      --print-font-size: 5pt;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, "PingFang TC", "Microsoft JhengHei", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    .app-container {
+      display: flex;
+      flex-direction: row;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    .sidebar {
+      width: 350px;
+      background: var(--panel-bg);
+      border-right: 1px solid var(--border);
+      padding: 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      overflow-y: auto;
+      flex-shrink: 0;
+    }
+
+    .sidebar h2 { font-size: 1.15rem; color: #0f172a; }
+    .section-title { font-size: 0.8rem; font-weight: 700; color: #64748b; text-transform: uppercase; margin-top: 2px; }
+
+    .control-group {
+      background: #f1f5f9;
+      padding: 10px 12px;
+      border-radius: 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    label { font-size: 0.82rem; font-weight: 600; display: flex; justify-content: space-between; align-items: center; }
+    input[type="range"] { width: 100%; accent-color: var(--primary); }
+    .val-badge { background: #e0e7ff; color: var(--primary); padding: 1px 6px; border-radius: 4px; font-size: 0.8rem; }
+
+    .upload-area {
+      border: 2px dashed #cbd5e1;
+      border-radius: 8px;
+      padding: 12px;
+      text-align: center;
+      cursor: pointer;
+      background: #ffffff;
+      transition: border-color 0.2s;
+    }
+    .upload-area:hover { border-color: var(--primary); }
+    .upload-area input { display: none; }
+
+    .presets-row { display: flex; gap: 6px; flex-wrap: wrap; }
+    .btn-preset {
+      padding: 4px 8px;
+      font-size: 0.78rem;
+      border: 1px solid var(--border);
+      background: #fff;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+    .btn-preset:hover { background: #f8fafc; border-color: #94a3b8; }
+
+    .checkbox-group { display: flex; flex-wrap: wrap; gap: 8px; font-size: 0.82rem; }
+    .checkbox-group label { display: inline-flex; gap: 4px; cursor: pointer; }
+
+    .actions-column { display: flex; flex-direction: column; gap: 8px; margin-top: 4px; }
+    .btn {
+      padding: 9px;
+      border-radius: 8px;
+      font-size: 0.88rem;
+      font-weight: 700;
+      border: 1px solid transparent;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+    }
+    .btn-primary { background: var(--primary); color: #fff; }
+    .btn-primary:hover { background: var(--primary-hover); }
+    .btn-secondary { background: #f8fafc; border-color: #cbd5e1; color: #334155; }
+    .btn-secondary:hover { background: #e2e8f0; }
+    .btn-toggle-active { background: #10b981; color: white; border-color: #059669; }
+
+    /* 主要預覽畫布與縮放控制 */
+    .main-content {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      overflow: hidden;
+      background: #f1f5f9;
+    }
+
+    .top-toolbar {
+      background: #ffffff;
+      border-bottom: 1px solid var(--border);
+      padding: 8px 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-shrink: 0;
+      gap: 12px;
+    }
+
+    .zoom-controls {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.85rem;
+    }
+    .zoom-btn {
+      background: #ffffff;
+      border: 1px solid #cbd5e1;
+      border-radius: 4px;
+      padding: 4px 10px;
+      font-size: 0.82rem;
+      cursor: pointer;
+      font-weight: 600;
+    }
+    .zoom-btn:hover { background: #f8fafc; border-color: #94a3b8; }
+    .zoom-level-text { min-width: 48px; text-align: center; font-weight: 700; color: var(--primary); }
+
+    .viewport-area {
+      flex: 1;
+      overflow: auto;
+      padding: 20px;
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      position: relative;
+    }
+
+    .printable-sheet {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      transform-origin: top center;
+      transition: transform 0.15s ease-out;
+    }
+
+    .legend-card {
+      background: var(--panel-bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 8px 14px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px 16px;
+      justify-content: center;
+      align-items: center;
+      max-width: 950px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+      margin-bottom: 12px;
+    }
+    .legend-item {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 0.85rem;
+      font-weight: 600;
+    }
+    .legend-box {
+      width: 15px;
+      height: 15px;
+      border-radius: 3px;
+      border: 1px solid rgba(0,0,0,0.3);
+      flex-shrink: 0;
+    }
+    .legend-color-text {
+      color: #0f172a;
+      font-weight: 700;
+      background: #f1f5f9;
+      padding: 1px 5px;
+      border-radius: 4px;
+      border: 1px solid #e2e8f0;
+    }
+
+    .grid-container {
+      background: #ffffff;
+      padding: 6px;
+      border-radius: 8px;
+      box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
+      border: 1px solid var(--border);
+      display: inline-block;
+    }
+    .pixel-table { border-collapse: collapse; table-layout: fixed; }
+    .pixel-cell {
+      border: 1px solid #cbd5e1;
+      text-align: center;
+      vertical-align: middle;
+      font-family: monospace;
+      font-weight: bold;
+      user-select: none;
+      padding: 0;
+      overflow: hidden;
+      white-space: nowrap;
+      letter-spacing: -0.4px;
+      transition: background-color 0.15s;
+    }
+    .pixel-cell.blank-bg {
+      background: #f8fafc !important;
+      color: transparent !important;
+      border-color: #f1f5f9 !important;
+    }
+
+    body.show-solution .pixel-cell:not(.blank-bg) {
+      color: transparent !important;
+    }
+
+    /* -----------------------------------------
+       A4 列印專屬配置 (支援高達 128 格單頁收納)
+    ----------------------------------------- */
+    @media print {
+      @page {
+        size: var(--page-orientation, A4 portrait);
+        margin: 4mm;
+      }
+      html, body {
+        background: #ffffff !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        width: 100% !important;
+        height: 100% !important;
+        overflow: hidden !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+      }
+
+      .sidebar, .top-toolbar { display: none !important; }
+      .app-container, .main-content, .viewport-area {
+        display: block !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        width: 100% !important;
+        height: 100% !important;
+        overflow: visible !important;
+      }
+
+      .printable-sheet {
+        transform: none !important;
+        display: flex !important;
+        flex-direction: column !important;
+        align-items: center !important;
+        justify-content: flex-start !important;
+        width: 100% !important;
+        height: 100% !important;
+        page-break-inside: avoid !important;
+      }
+
+      .legend-card {
+        box-shadow: none !important;
+        border: none !important;
+        padding: 1.5mm 0 !important;
+        margin-bottom: 1.5mm !important;
+        gap: 5px 10px !important;
+      }
+      .legend-item { font-size: 7.5pt !important; gap: 3px !important; }
+      .legend-box { width: 9px !important; height: 9px !important; border: 1px solid #000 !important; }
+      .legend-color-text {
+        font-weight: 800 !important;
+        color: #000 !important;
+        background: transparent !important;
+        border: none !important;
+        padding: 0 !important;
+      }
+
+      .grid-container {
+        box-shadow: none !important;
+        border: none !important;
+        padding: 0 !important;
+        margin: 0 auto !important;
+      }
+      .pixel-table { border: 1px solid #000 !important; }
+      .pixel-cell {
+        border: 0.15px solid #475569 !important;
+        width: var(--print-cell-size) !important;
+        height: var(--print-cell-size) !important;
+        font-size: var(--print-font-size) !important;
+        line-height: var(--print-cell-size) !important;
+      }
+      .pixel-cell.blank-bg {
+        background: #ffffff !important;
+        color: transparent !important;
+        border: 0.15px solid #e2e8f0 !important;
+      }
+
+      body:not(.show-solution) .pixel-cell:not(.blank-bg) {
+        background-color: #ffffff !important;
+        color: #000000 !important;
+      }
+      body.show-solution .pixel-cell:not(.blank-bg) {
+        color: transparent !important;
+      }
+    }
+  </style>
+</head>
+<body>
+
+<div class="app-container">
+  <aside class="sidebar">
+    <h2>題目設定面板</h2>
+
+    <div class="section-title">1. 選擇圖片</div>
+    <div class="upload-area" id="uploadArea">
+      <span style="font-size: 1.3rem;">📁</span>
+      <p style="font-size: 0.82rem; font-weight: 600; margin-top: 2px;">點擊或拖放圖片</p>
+      <input type="file" id="fileInput" accept="image/*">
+    </div>
+
+    <div class="presets-row">
+      <button class="btn-preset" data-preset="thunder">⚡ 閃電鼠</button>
+      <button class="btn-preset" data-preset="apple">🍎 蘋果</button>
+      <button class="btn-preset" data-preset="mushroom">🍄 蘑菇</button>
+      <button class="btn-preset" data-preset="heart">💖 愛心</button>
+    </div>
+
+    <div class="section-title">2. 像素格數與顏色</div>
+    <div class="control-group">
+      <label>長邊格數: <span class="val-badge" id="gridSizeVal">32</span></label>
+      <!-- 上限提高至 128 格 -->
+      <input type="range" id="gridSizeRange" min="12" max="128" value="32" step="2">
+
+      <label>主色數量上限: <span class="val-badge" id="colorCountVal">5</span></label>
+      <input type="range" id="colorCountRange" min="3" max="12" value="5">
+
+      <div class="checkbox-group" style="margin-top: 4px;">
+        <label><input type="checkbox" id="blankBgCheck" checked> 智慧留白 (白色背景不出題)</label>
+      </div>
+    </div>
+
+    <div class="section-title">3. 運算元與答案限制</div>
+    <div class="control-group">
+      <div class="checkbox-group">
+        <label><input type="checkbox" id="opAdd" checked> 加 (+)</label>
+        <label><input type="checkbox" id="opSub" checked> 減 (-)</label>
+        <label><input type="checkbox" id="opMul"> 乘 (×)</label>
+        <label><input type="checkbox" id="opDiv"> 除 (÷)</label>
+      </div>
+
+      <label style="margin-top: 6px;">
+        運算元數字上限 (0 ~ N):
+        <span class="val-badge" id="maxOperandVal">9</span>
+      </label>
+      <input type="range" id="maxOperandRange" min="3" max="30" value="9" step="1">
+
+      <label style="margin-top: 6px;">
+        答案數字上限:
+        <span class="val-badge" id="maxAnsVal">18</span>
+      </label>
+      <input type="range" id="maxAnsRange" min="5" max="100" value="18" step="1">
+    </div>
+
+    <div class="actions-column">
+      <button class="btn btn-secondary" id="btnToggleSolution">
+        👁️ 查看塗色結果 (解答)
+      </button>
+      <button class="btn btn-secondary" id="btnRegenerate">
+        🔄 重新出題 (隨機題目)
+      </button>
+      <button class="btn btn-primary" id="btnPrint">
+        🖨️ 列印 A4 練習題 (自適應單頁)
+      </button>
+    </div>
+  </aside>
+
+  <main class="main-content">
+    <div class="top-toolbar">
+      <div style="font-size: 0.85rem; font-weight: 700; color: #475569;">
+        畫布檢視控制
+      </div>
+      <div class="zoom-controls">
+        <button class="zoom-btn" id="btnZoomOut">－ 縮小</button>
+        <button class="zoom-btn" id="btnZoomFit">🔍 適合視窗 (Fit)</button>
+        <button class="zoom-btn" id="btnZoom100">100% (原始)</button>
+        <button class="zoom-btn" id="btnZoomIn">＋ 放大</button>
+        <span class="zoom-level-text" id="zoomLevelText">100%</span>
+      </div>
+    </div>
+
+    <div class="viewport-area" id="viewportArea">
+      <div class="printable-sheet" id="printableSheet">
+        <div class="legend-card" id="legendContainer"></div>
+        <div class="grid-container" id="gridContainer">
+          <table class="pixel-table" id="pixelTable"></table>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script>
+  const PRESETS = {
+    thunder: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+      <polygon points="15,5 35,45 10,35" fill="#facc15" stroke="#000" stroke-width="2"/>
+      <polygon points="15,5 23,20 10,35" fill="#1e293b"/>
+      <polygon points="85,5 65,45 90,35" fill="#facc15" stroke="#000" stroke-width="2"/>
+      <polygon points="85,5 77,20 90,35" fill="#1e293b"/>
+      <circle cx="50" cy="58" r="38" fill="#facc15"/>
+      <circle cx="34" cy="52" r="5" fill="#0f172a"/>
+      <circle cx="33" cy="50" r="1.5" fill="#ffffff"/>
+      <circle cx="66" cy="52" r="5" fill="#0f172a"/>
+      <circle cx="65" cy="50" r="1.5" fill="#ffffff"/>
+      <circle cx="24" cy="65" r="7.5" fill="#ef4444"/>
+      <circle cx="76" cy="65" r="7.5" fill="#ef4444"/>
+      <ellipse cx="50" cy="60" rx="2" ry="1.5" fill="#0f172a"/>
+      <path d="M 45 66 Q 50 71 55 66" fill="none" stroke="#0f172a" stroke-width="2" stroke-linecap="round"/>
+    </svg>`,
+    apple: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+      <path d="M50 20 Q55 5 65 8" fill="none" stroke="#78350f" stroke-width="4" stroke-linecap="round"/>
+      <path d="M52 14 Q65 10 65 20 Q55 24 52 14" fill="#22c55e"/>
+      <circle cx="38" cy="58" r="30" fill="#ef4444"/>
+      <circle cx="62" cy="58" r="30" fill="#ef4444"/>
+      <circle cx="50" cy="64" r="26" fill="#ef4444"/>
+      <ellipse cx="32" cy="46" rx="6" ry="12" fill="#fca5a5" transform="rotate(-20 32 46)"/>
+    </svg>`,
+    mushroom: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+      <path d="M15 55 Q50 5 85 55 Z" fill="#ef4444"/>
+      <circle cx="35" cy="35" r="7" fill="#ffffff"/>
+      <circle cx="65" cy="35" r="7" fill="#ffffff"/>
+      <circle cx="50" cy="22" r="5" fill="#ffffff"/>
+      <rect x="36" y="55" width="28" height="35" rx="8" fill="#fef08a"/>
+      <circle cx="44" cy="68" r="2.5" fill="#0f172a"/>
+      <circle cx="56" cy="68" r="2.5" fill="#0f172a"/>
+    </svg>`,
+    heart: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+      <path d="M50 85 C20 60 5 40 15 22 C25 5 45 12 50 28 C55 12 75 5 85 22 C95 40 80 60 50 85 Z" fill="#ec4899"/>
+    </svg>`
+  };
+
+  let sourceImage = new Image();
+  let currentGridData = null;
+  let isShowingSolution = false;
+  let currentZoom = 1.0;
+
+  const uploadArea = document.getElementById('uploadArea');
+  const fileInput = document.getElementById('fileInput');
+  const gridSizeRange = document.getElementById('gridSizeRange');
+  const gridSizeVal = document.getElementById('gridSizeVal');
+  const colorCountRange = document.getElementById('colorCountRange');
+  const colorCountVal = document.getElementById('colorCountVal');
+  const blankBgCheck = document.getElementById('blankBgCheck');
+  const maxOperandRange = document.getElementById('maxOperandRange');
+  const maxOperandVal = document.getElementById('maxOperandVal');
+  const maxAnsRange = document.getElementById('maxAnsRange');
+  const maxAnsVal = document.getElementById('maxAnsVal');
+  const opAdd = document.getElementById('opAdd');
+  const opSub = document.getElementById('opSub');
+  const opMul = document.getElementById('opMul');
+  const opDiv = document.getElementById('opDiv');
+  const btnToggleSolution = document.getElementById('btnToggleSolution');
+  const btnRegenerate = document.getElementById('btnRegenerate');
+  const btnPrint = document.getElementById('btnPrint');
+  const pixelTable = document.getElementById('pixelTable');
+  const legendContainer = document.getElementById('legendContainer');
+  const printableSheet = document.getElementById('printableSheet');
+  const viewportArea = document.getElementById('viewportArea');
+  const zoomLevelText = document.getElementById('zoomLevelText');
+  const btnZoomIn = document.getElementById('btnZoomIn');
+  const btnZoomOut = document.getElementById('btnZoomOut');
+  const btnZoomFit = document.getElementById('btnZoomFit');
+  const btnZoom100 = document.getElementById('btnZoom100');
+
+  loadSvgPreset(PRESETS.thunder);
+
+  gridSizeRange.oninput = () => { gridSizeVal.innerText = gridSizeRange.value; processImage(); };
+  colorCountRange.oninput = () => { colorCountVal.innerText = colorCountRange.value; processImage(); };
+  maxOperandRange.oninput = () => { maxOperandVal.innerText = maxOperandRange.value; processImage(); };
+  maxAnsRange.oninput = () => { maxAnsVal.innerText = maxAnsRange.value; processImage(); };
+  blankBgCheck.onchange = () => processImage();
+  [opAdd, opSub, opMul, opDiv].forEach(el => el.onchange = () => processImage());
+
+  btnZoomIn.onclick = () => setZoom(currentZoom + 0.15);
+  btnZoomOut.onclick = () => setZoom(currentZoom - 0.15);
+  btnZoom100.onclick = () => setZoom(1.0);
+  btnZoomFit.onclick = () => autoFitScreen();
+
+  function setZoom(val) {
+    currentZoom = Math.max(0.1, Math.min(2.5, val));
+    printableSheet.style.transform = `scale(${currentZoom})`;
+    zoomLevelText.innerText = `${Math.round(currentZoom * 100)}%`;
+  }
+
+  function autoFitScreen() {
+    if (!currentGridData) return;
+    const viewW = viewportArea.clientWidth - 40;
+    const viewH = viewportArea.clientHeight - 40;
+    const sheetW = printableSheet.offsetWidth || 700;
+    const sheetH = printableSheet.offsetHeight || 700;
+
+    const scaleW = viewW / sheetW;
+    const scaleH = viewH / sheetH;
+    setZoom(Math.min(1.0, Math.min(scaleW, scaleH)));
+  }
+
+  btnToggleSolution.onclick = () => {
+    isShowingSolution = !isShowingSolution;
+    document.body.classList.toggle('show-solution', isShowingSolution);
+    btnToggleSolution.classList.toggle('btn-toggle-active', isShowingSolution);
+    btnToggleSolution.innerHTML = isShowingSolution ? '📝 返回算式題目' : '👁️ 查看塗色結果 (解答)';
+    updateCellAppearance();
+  };
+
+  btnRegenerate.onclick = () => {
+    if (!currentGridData) return;
+    regenerateMathProblems();
+  };
+
+  btnPrint.onclick = () => window.print();
+
+  uploadArea.onclick = () => fileInput.click();
+  fileInput.onchange = (e) => {
+    if (e.target.files && e.target.files[0]) {
+      const reader = new FileReader();
+      reader.onload = (evt) => {
+        sourceImage = new Image();
+        sourceImage.onload = () => processImage();
+        sourceImage.src = evt.target.result;
+      };
+      reader.readAsDataURL(e.target.files[0]);
+    }
+  };
+
+  document.querySelectorAll('.btn-preset').forEach(btn => {
+    btn.onclick = () => {
+      const type = btn.getAttribute('data-preset');
+      if (PRESETS[type]) loadSvgPreset(PRESETS[type]);
+    };
+  });
+
+  function loadSvgPreset(svgStr) {
+    const blob = new Blob([svgStr], { type: 'image/svg+xml' });
+    const url = URL.createObjectURL(blob);
+    sourceImage = new Image();
+    sourceImage.onload = () => {
+      processImage();
+      URL.revokeObjectURL(url);
+    };
+    sourceImage.src = url;
+  }
+
+  function getColorChineseName(r, g, b) {
+    const rN = r / 255, gN = g / 255, bN = b / 255;
+    const max = Math.max(rN, gN, bN), min = Math.min(rN, gN, bN);
+    let h = 0, s = 0, l = (max + min) / 2;
+
+    if (max !== min) {
+      const d = max - min;
+      s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+      switch (max) {
+        case rN: h = (gN - bN) / d + (gN < bN ? 6 : 0); break;
+        case gN: h = (bN - rN) / d + 2; break;
+        case bN: h = (rN - gN) / d + 4; break;
+      }
+      h *= 60;
+    }
+
+    if (l < 0.18) return '黑色';
+    if (l > 0.88 && s < 0.22) return '白色';
+    if (s < 0.16) {
+      if (l < 0.45) return '深灰色';
+      if (l < 0.72) return '灰色';
+      return '淺灰色';
+    }
+
+    if (h >= 15 && h <= 45 && l < 0.42 && s > 0.2) {
+      return l < 0.28 ? '深褐色' : '咖啡色';
+    }
+    if ((h >= 325 || h <= 15) && l > 0.62 && s > 0.25) {
+      return '粉紅色';
+    }
+
+    let prefix = '';
+    if (l < 0.32) prefix = '深';
+    else if (l > 0.72 && h > 45 && h < 270) prefix = '淺';
+
+    if (h < 15 || h >= 345) return prefix + '紅色';
+    if (h < 45) return (l > 0.65 ? '淡橘色' : (prefix + '橘色'));
+    if (h < 70) return (l < 0.45 ? '土黃色' : (l > 0.75 ? '淡黃色' : '黃色'));
+    if (h < 165) return (l > 0.65 ? '淺綠色' : (l < 0.35 ? '深綠色' : '綠色'));
+    if (h < 200) return (l > 0.6 ? '天藍色' : '湖水藍');
+    if (h < 260) return (l > 0.65 ? '淺藍色' : (l < 0.35 ? '深藍色' : '藍色'));
+    if (h < 300) return (l > 0.65 ? '淺紫色' : (l < 0.35 ? '深紫色' : '紫色'));
+    return prefix + '桃紅色';
+  }
+
+  function processImage() {
+    if (!sourceImage.complete || sourceImage.naturalWidth === 0) return;
+
+    const canvas = document.createElement('canvas');
+    const w = sourceImage.naturalWidth;
+    const h = sourceImage.naturalHeight;
+    canvas.width = w;
+    canvas.height = h;
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, w, h);
+    ctx.drawImage(sourceImage, 0, 0);
+
+    const imgData = ctx.getImageData(0, 0, w, h).data;
+    let minX = w, minY = h, maxX = 0, maxY = 0;
+    let foundSubject = false;
+
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) {
+        const i = (y * w + x) * 4;
+        const r = imgData[i], g = imgData[i+1], b = imgData[i+2];
+        if (r < 240 || g < 240 || b < 240) {
+          foundSubject = true;
+          if (x < minX) minX = x;
+          if (x > maxX) maxX = x;
+          if (y < minY) minY = y;
+          if (y > maxY) maxY = y;
+        }
+      }
+    }
+
+    let cropX = 0, cropY = 0, cropW = w, cropH = h;
+    if (foundSubject) {
+      const padX = Math.round((maxX - minX) * 0.03);
+      const padY = Math.round((maxY - minY) * 0.03);
+      cropX = Math.max(0, minX - padX);
+      cropY = Math.max(0, minY - padY);
+      cropW = Math.min(w, maxX + padX) - cropX;
+      cropH = Math.min(h, maxY + padY) - cropY;
+    }
+
+    const maxEdge = parseInt(gridSizeRange.value, 10);
+    let cols, rows;
+    if (cropW >= cropH) {
+      cols = maxEdge;
+      rows = Math.max(8, Math.round(maxEdge * (cropH / cropW)));
+    } else {
+      rows = maxEdge;
+      cols = Math.max(8, Math.round(maxEdge * (cropW / cropH)));
+    }
+
+    const sampleCanvas = document.createElement('canvas');
+    sampleCanvas.width = cols;
+    sampleCanvas.height = rows;
+    const sCtx = sampleCanvas.getContext('2d');
+    sCtx.fillStyle = '#ffffff';
+    sCtx.fillRect(0, 0, cols, rows);
+    sCtx.drawImage(canvas, cropX, cropY, cropW, cropH, 0, 0, cols, rows);
+
+    const sData = sCtx.getImageData(0, 0, cols, rows).data;
+    const isBlankBg = blankBgCheck.checked;
+    const kCount = parseInt(colorCountRange.value, 10);
+
+    const validPixels = [];
+    for (let i = 0; i < sData.length; i += 4) {
+      const r = sData[i], g = sData[i+1], b = sData[i+2];
+      const isNearWhite = (r > 235 && g > 235 && b > 235);
+      if (!isBlankBg || !isNearWhite) validPixels.push([r, g, b]);
+    }
+
+    let palette = quantizeColors(validPixels, kCount);
+    if (palette.length === 0) palette = [[250, 204, 21], [239, 68, 68], [15, 23, 42]];
+    palette.sort((a, b) => (0.299*a[0] + 0.587*a[1] + 0.114*a[2]) - (0.299*b[0] + 0.587*b[1] + 0.114*b[2]));
+
+    const maxAns = parseInt(maxAnsRange.value, 10);
+    const step = Math.max(1, Math.floor(maxAns / palette.length));
+    const usedNamesCount = {};
+    const ranges = palette.map((color, idx) => {
+      const min = idx * step + 1;
+      const max = (idx === palette.length - 1) ? maxAns : (idx + 1) * step;
+      let rawName = getColorChineseName(color[0], color[1], color[2]);
+      
+      if (usedNamesCount[rawName]) {
+        usedNamesCount[rawName]++;
+        rawName = `${rawName} (${usedNamesCount[rawName]})`;
+      } else {
+        usedNamesCount[rawName] = 1;
+      }
+
+      return { min, max, color, colorName: rawName };
+    });
+
+    const maxOperand = parseInt(maxOperandRange.value, 10);
+
+    const grid = [];
+    for (let r = 0; r < rows; r++) {
+      const rowArr = [];
+      for (let c = 0; c < cols; c++) {
+        const idx = (r * cols + c) * 4;
+        const pr = sData[idx], pg = sData[idx+1], pb = sData[idx+2];
+        const isNearWhite = (pr > 235 && pg > 235 && pb > 235);
+
+        if (isBlankBg && isNearWhite) {
+          rowArr.push({ isBlank: true, text: '', color: null });
+        } else {
+          let bestIdx = 0, minD = Infinity;
+          for (let p = 0; p < palette.length; p++) {
+            const d = colorDistanceSq([pr, pg, pb], palette[p]);
+            if (d < minD) { minD = d; bestIdx = p; }
+          }
+          const range = ranges[bestIdx];
+          const ans = Math.floor(Math.random() * (range.max - range.min + 1)) + range.min;
+          rowArr.push({
+            isBlank: false,
+            colorIdx: bestIdx,
+            color: palette[bestIdx],
+            range: range,
+            text: generateStrictProblem(ans, maxOperand),
+            ans: ans
+          });
+        }
+      }
+      grid.push(rowArr);
+    }
+
+    currentGridData = { grid, cols, rows, ranges };
+    renderApp();
+    setTimeout(autoFitScreen, 60);
+  }
+
+  function regenerateMathProblems() {
+    const { grid, ranges } = currentGridData;
+    const maxOperand = parseInt(maxOperandRange.value, 10);
+
+    for (let r = 0; r < grid.length; r++) {
+      for (let c = 0; c < grid[r].length; c++) {
+        const cell = grid[r][c];
+        if (!cell.isBlank) {
+          const range = ranges[cell.colorIdx];
+          const ans = Math.floor(Math.random() * (range.max - range.min + 1)) + range.min;
+          cell.ans = ans;
+          cell.text = generateStrictProblem(ans, maxOperand);
+        }
+      }
+    }
+    renderTableOnly();
+  }
+
+  function colorDistanceSq(c1, c2) {
+    const rmean = (c1[0] + c2[0]) / 2;
+    const r = c1[0] - c2[0];
+    const g = c1[1] - c2[1];
+    const b = c1[2] - c2[2];
+    return (((512 + rmean) * r * r) >> 8) + 4 * g * g + (((767 - rmean) * b * b) >> 8);
+  }
+
+  function quantizeColors(pixels, k) {
+    if (pixels.length === 0) return [];
+    const centers = [];
+    centers.push(pixels[Math.floor(Math.random() * pixels.length)].slice());
+
+    while (centers.length < k && centers.length < pixels.length) {
+      const dists = pixels.map(p => {
+        let minD = Infinity;
+        for (const c of centers) {
+          const d = colorDistanceSq(p, c);
+          if (d < minD) minD = d;
+        }
+        return minD;
+      });
+      const sum = dists.reduce((a, b) => a + b, 0);
+      let rand = Math.random() * sum;
+      let chosen = pixels[0];
+      for (let i = 0; i < pixels.length; i++) {
+        rand -= dists[i];
+        if (rand <= 0) { chosen = pixels[i]; break; }
+      }
+      centers.push(chosen.slice());
+    }
+
+    for (let iter = 0; iter < 8; iter++) {
+      const clusters = centers.map(() => []);
+      for (const p of pixels) {
+        let bestIdx = 0, bestD = Infinity;
+        for (let i = 0; i < centers.length; i++) {
+          const d = colorDistanceSq(p, centers[i]);
+          if (d < bestD) { bestD = d; bestIdx = i; }
+        }
+        clusters[bestIdx].push(p);
+      }
+      for (let i = 0; i < centers.length; i++) {
+        if (clusters[i].length > 0) {
+          let sr = 0, sg = 0, sb = 0;
+          for (const c of clusters[i]) { sr += c[0]; sg += c[1]; sb += c[2]; }
+          centers[i] = [
+            Math.round(sr / clusters[i].length),
+            Math.round(sg / clusters[i].length),
+            Math.round(sb / clusters[i].length)
+          ];
+        }
+      }
+    }
+    return centers;
+  }
+
+  function generateStrictProblem(target, maxOperand) {
+    const candidates = [];
+
+    if (opAdd.checked) {
+      const minA = Math.max(0, target - maxOperand);
+      const maxA = Math.min(target, maxOperand);
+      for (let a = minA; a <= maxA; a++) {
+        const b = target - a;
+        if (b >= 0 && b <= maxOperand) candidates.push(`${a}+${b}`);
+      }
+    }
+
+    if (opSub.checked) {
+      if (target <= maxOperand) {
+        const maxB = maxOperand - target;
+        for (let b = 0; b <= maxB; b++) {
+          const a = target + b;
+          if (a <= maxOperand) candidates.push(`${a}-${b}`);
+        }
+      }
+    }
+
+    if (opMul.checked) {
+      if (target === 0) {
+        candidates.push(`0×${Math.min(maxOperand, 5)}`);
+      } else {
+        for (let a = 1; a <= Math.min(target, maxOperand); a++) {
+          if (target % a === 0) {
+            const b = target / a;
+            if (b <= maxOperand) candidates.push(`${a}×${b}`);
+          }
+        }
+      }
+    }
+
+    if (opDiv.checked) {
+      if (target === 0) {
+        candidates.push(`0÷1`);
+      } else {
+        const maxB = Math.floor(maxOperand / target);
+        for (let b = 1; b <= Math.min(maxB, maxOperand); b++) {
+          const a = b * target;
+          if (a <= maxOperand) candidates.push(`${a}÷${b}`);
+        }
+      }
+    }
+
+    if (candidates.length > 0) {
+      return candidates[Math.floor(Math.random() * candidates.length)];
+    }
+
+    if (target <= 1) return `0+${target}`;
+    const half = Math.floor(target / 2);
+    return `${half}+${target - half}`;
+  }
+
+  function renderApp() {
+    const { ranges } = currentGridData;
+
+    legendContainer.innerHTML = '';
+    ranges.forEach((r) => {
+      const rgb = `rgb(${r.color[0]}, ${r.color[1]}, ${r.color[2]})`;
+      const item = document.createElement('div');
+      item.className = 'legend-item';
+      item.innerHTML = `
+        <span class="legend-box" style="background:${rgb}"></span>
+        <span><b>${r.min} ~ ${r.max}</b> ➔ <span class="legend-color-text">${r.colorName}</span></span>
+      `;
+      legendContainer.appendChild(item);
+    });
+
+    renderTableOnly();
+  }
+
+  /* 針對 128 格（16,384 方格）優化：快速字串模板構建 DOM */
+  function renderTableOnly() {
+    const { grid, cols, rows } = currentGridData;
+
+    let html = '';
+    for (let r = 0; r < rows; r++) {
+      html += '<tr>';
+      for (let c = 0; c < cols; c++) {
+        const cell = grid[r][c];
+        if (cell.isBlank) {
+          html += `<td class="pixel-cell blank-bg" data-r="${r}" data-c="${c}"></td>`;
+        } else {
+          html += `<td class="pixel-cell" data-r="${r}" data-c="${c}">${cell.text}</td>`;
+        }
+      }
+      html += '</tr>';
+    }
+    pixelTable.innerHTML = html;
+
+    // A4 列印計算：確保 128 格依然完整排入單張紙
+    const isLandscape = (cols >= rows);
+    const root = document.documentElement;
+    root.style.setProperty('--page-orientation', isLandscape ? 'A4 landscape' : 'A4 portrait');
+
+    let maxPrintW = isLandscape ? 280 : 194;
+    let maxPrintH = isLandscape ? 164 : 240;
+
+    const cellW = maxPrintW / cols;
+    const cellH = maxPrintH / rows;
+    const cellSizeMm = Math.floor(Math.min(cellW, cellH) * 100) / 100;
+    root.style.setProperty('--print-cell-size', `${cellSizeMm}mm`);
+
+    let fontSizePt = Math.max(1.8, Math.min(8, cellSizeMm * 0.82));
+    root.style.setProperty('--print-font-size', `${fontSizePt.toFixed(1)}pt`);
+
+    // 螢幕預覽方格大小
+    const baseCellPx = Math.max(14, Math.min(32, Math.floor(880 / Math.max(cols, rows))));
+    const fontSizePx = Math.max(6, Math.floor(baseCellPx * 0.4));
+    
+    document.querySelectorAll('.pixel-cell').forEach(td => {
+      td.style.width = `${baseCellPx}px`;
+      td.style.height = `${baseCellPx}px`;
+      td.style.fontSize = `${fontSizePx}px`;
+    });
+
+    updateCellAppearance();
+  }
+
+  function updateCellAppearance() {
+    if (!currentGridData) return;
+    const { grid } = currentGridData;
+    const cells = document.querySelectorAll('.pixel-cell');
+
+    cells.forEach(td => {
+      const r = td.dataset.r;
+      const c = td.dataset.c;
+      if (r === undefined) return;
+      const cellData = grid[r][c];
+
+      if (cellData.isBlank) return;
+
+      if (isShowingSolution) {
+        td.style.backgroundColor = `rgb(${cellData.color[0]}, ${cellData.color[1]}, ${cellData.color[2]})`;
+      } else {
+        td.style.backgroundColor = '#ffffff';
+      }
+    });
+  }
+</script>
+</body>
+</html>
